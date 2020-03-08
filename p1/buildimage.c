@@ -1,4 +1,4 @@
-/* Author(s): <Your name(s) here>
+/* Author(s): Gabriel Lucas da Silva, Lucas Santana Escobar
  * Creates operating system image suitable for placement on a boot disk
 */
 /* TODO: Comment on the status of your submission. Largely unimplemented */
@@ -19,8 +19,12 @@
 
 /* Reads in an executable file in ELF format*/
 Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr){
- 
-  return NULL;
+  *execfile = fopen(filename,"rb");
+  fread(*ehdr, 1, sizeof(Elf32_Ehdr), *execfile);
+  Elf32_Phdr *ret = malloc(sizeof(Elf32_Phdr));
+  fread(ret, 1, sizeof(Elf32_Phdr), *execfile);
+  fclose(*execfile);
+  return ret;
 }
 
 /* Writes the bootblock to the image file */
@@ -74,11 +78,15 @@ int main(int argc, char **argv){
   Elf32_Phdr *kernel_program_header; //kernel ELF program header
 
   /* build image file */
-
+  imagefile = fopen(IMAGE_FILE, "w");
   /* read executable bootblock file */  
+  // int hasExtended = !strncmp(argv[1],"--extended",11);
+  // char *bootfile_name = hasExtended?argv[2]:argv[1];
 
-  /* write bootblock */  
-
+  boot_program_header = read_exec_file(&bootfile,argv[1],&boot_header);
+  /* write bootblock */
+  fwrite(boot_header, 1, sizeof(Elf32_Ehdr), imagefile);
+  fwrite(boot_program_header, 1, sizeof(Elf32_Phdr), imagefile);
   /* read executable kernel file */
 
   /* write kernel segments to image */
@@ -89,7 +97,7 @@ int main(int argc, char **argv){
   if(!strncmp(argv[1],"--extended",11)){
 	/* print info */
   }
-  
+  fclose(imagefile);
   return 0;
 } // ends main()
 
