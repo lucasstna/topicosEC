@@ -73,10 +73,10 @@ void record_kernel_sectors(FILE **imagefile,Elf32_Ehdr *kernel_header, Elf32_Phd
   fwrite(&num_sec, 1, sizeof(int), *imagefile);
 }
 
-
 /* Prints segment information for --extended option */
 void extended_opt(Elf32_Phdr *bph, int k_phnum, Elf32_Phdr *kph, int num_sec, const char * boot_filename, const char * kernel_filename){
 
+  // padding info calculation
   int padd_b = bph->p_filesz + (512 - bph->p_filesz % 512);
   int padd_k = padd_b + kph->p_filesz + (512 - kph->p_filesz % 512);
   
@@ -117,25 +117,27 @@ int main(int argc, char **argv){
   /* build image file */
   imagefile = fopen(IMAGE_FILE, "w");
   
-  
-  /* read executable bootblock file */  
+  // get the correct bootfile name
   int hasExtended = !strncmp(argv[1],"--extended",11);
   char *bootfile_name = hasExtended?argv[2]:argv[1];
   bootfile = fopen(bootfile_name,"rb");
   if(!bootfile)
     return 1;
+
+  /* read executable bootblock file */  
   boot_program_header = read_exec_file(&bootfile,bootfile_name,&boot_header);
 
 
   /* write bootblock */
   write_bootblock(&imagefile, bootfile, boot_header, boot_program_header);
   
-  
-  /* read executable kernel file */
+  // get the correct kernelfile name
   char *kernelfile_name = hasExtended?argv[3]:argv[2];
   kernelfile = fopen(kernelfile_name,"rb");
   if(!kernelfile)
     return 1;
+
+  /* read executable kernel file */
   kernel_program_header = read_exec_file(&kernelfile,kernelfile_name,&kernel_header);
   
   
@@ -150,7 +152,8 @@ int main(int argc, char **argv){
   
   /* check for  --extended option */
   if(!strncmp(argv[1],"--extended",11)){
-	  fseek(imagefile, 0, SEEK_END);
+	  // set reading position to the end of the file
+    fseek(imagefile, 0, SEEK_END);
     /* print info */
     extended_opt(boot_program_header, sector_nb, kernel_program_header, sector_nb, bootfile_name, kernelfile_name);
   }
