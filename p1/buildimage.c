@@ -75,18 +75,32 @@ void record_kernel_sectors(FILE **imagefile,Elf32_Ehdr *kernel_header, Elf32_Phd
 
 
 /* Prints segment information for --extended option */
-void extended_opt(Elf32_Phdr *bph, int k_phnum, Elf32_Phdr *kph, int num_sec){
+void extended_opt(Elf32_Phdr *bph, int k_phnum, Elf32_Phdr *kph, int num_sec, const char * boot_filename, const char * kernel_filename){
 
-  /* print number of disk sectors used by the image */
-
+  int padd_b = bph->p_filesz + (512 - bph->p_filesz % 512);
+  int padd_k = padd_b + kph->p_filesz + (512 - kph->p_filesz % 512);
   
+  /* print number of disk sectors used by the image */
+  printf("Number of disk sectors used by the image: %d\n", padd_k / 512);
+
   /*bootblock segment info */
- 
+  printf("0x%04x: %s\n", bph->p_paddr, boot_filename);
+  printf("\tsegment 0\n");
+  printf("\t\toffset 0x%04x\t\t vaddr 0x%04x\n",bph->p_offset, bph->p_vaddr);
+  printf("\t\tfilesz 0x%04x\t\t memsz 0x%04x\n", bph->p_filesz, bph->p_memsz);
+  printf("\t\twriting 0x%04x bytes\n", bph->p_filesz);
+  printf("\t\tpadding up to 0x%04x\n", padd_b);
 
   /* print kernel segment info */
-  
+  printf("0x%04x: %s\n", kph->p_paddr, kernel_filename);
+  printf("\tsegment 0\n");
+  printf("\t\toffset 0x%04x\t\t vaddr 0x%04x\n",kph->p_offset, kph->p_vaddr);
+  printf("\t\tfilesz 0x%04x\t\t memsz 0x%04x\n", kph->p_filesz, kph->p_memsz);
+  printf("\t\twriting 0x%04x bytes\n", kph->p_filesz);
+  printf("\t\tpadding up to 0x%04x\n", padd_k);
 
   /* print kernel size in sectors */
+  printf("os_size: %d sectors\n", num_sec);
 }
 // more helper functions...
 
@@ -136,7 +150,9 @@ int main(int argc, char **argv){
   
   /* check for  --extended option */
   if(!strncmp(argv[1],"--extended",11)){
-	/* print info */
+	  fseek(imagefile, 0, SEEK_END);
+    /* print info */
+    extended_opt(boot_program_header, sector_nb, kernel_program_header, sector_nb, bootfile_name, kernelfile_name);
   }
   fclose(imagefile);
   fclose(kernelfile);
