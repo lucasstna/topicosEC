@@ -9,7 +9,7 @@ KERNEL_ADDR	= 0x1000
 
 # Compiler flags
 #-fno-builtin:		Don't recognize builtin functions that do not begin
-#			with '__builtin_' as prefix.
+#			with '_builtin' as prefix.
 #
 #-fomit-frame-pointer:	Don't keep the frame pointer in a register for 
 #			functions that don't need one.
@@ -51,7 +51,7 @@ buildimage: buildimage.o
 
 # Build an image to put on the floppy
 image: bootblock buildimage kernel
-	./buildimage.given --extended ./bootblock ./kernel
+	./buildimage --extended ./bootblock ./kernel
 
 # Put the image on the usb stick (these two stages are independent, as both
 # vmware and bochs can run using only the image file stored on the harddisk)	

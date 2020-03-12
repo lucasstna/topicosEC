@@ -19,35 +19,58 @@
 
 /* Reads in an executable file in ELF format*/
 Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr){
-  *execfile = fopen(filename,"rb");
+  // *execfile = fopen(filename,"rb");
   fread(*ehdr, 1, sizeof(Elf32_Ehdr), *execfile);
-  Elf32_Phdr *ret = malloc(sizeof(Elf32_Phdr));
-  fread(ret, 1, sizeof(Elf32_Phdr), *execfile);
-  fclose(*execfile);
-  return ret;
+  if((*ehdr)->e_phoff != 0)
+  {
+    Elf32_Phdr *ret = malloc(sizeof(Elf32_Phdr));
+    fread(ret, 1, sizeof(Elf32_Phdr), *execfile);
+    return ret;
+  }
+  return NULL;
 }
 
 /* Writes the bootblock to the image file */
 void write_bootblock(FILE **imagefile,FILE *bootfile,Elf32_Ehdr *boot_header, Elf32_Phdr *boot_phdr){
- 
-
+  void* text = malloc(boot_phdr->p_filesz);
+  fread(text, 1, boot_phdr->p_filesz, bootfile);
+  fwrite(text, 1, boot_phdr->p_filesz, *imagefile);
+  //Padding
+  void* padd = calloc(512 - boot_phdr->p_filesz%512,1);
+  fwrite(padd, 1, 512 - boot_phdr->p_filesz%512 - 2, *imagefile);
+  //Signature
+  char* ass = malloc(2);
+  ass[0] = 0x55;
+  ass[1] = 0xAA;
+  fwrite(ass, 1, 2, *imagefile);
+  //Deallocating memory
+  free(text);
 }
 
 /* Writes the kernel to the image file */
 void write_kernel(FILE **imagefile,FILE *kernelfile,Elf32_Ehdr *kernel_header, Elf32_Phdr *kernel_phdr){
-
- 
+  void* text = malloc(kernel_phdr->p_filesz);
+  fread(text, 1, kernel_phdr->p_filesz, kernelfile);
+  //Writing on image
+  fwrite(text, 1, kernel_phdr->p_filesz, *imagefile); 
+  //Padding
+  void* padd = calloc(512 - kernel_phdr->p_filesz%512,1);
+  fwrite(padd, 1, 512 - kernel_phdr->p_filesz%512, *imagefile);
+  //Deallocating memory
+  free(text);
+  free(padd);
 }
 
 /* Counts the number of sectors in the kernel */
 int count_kernel_sectors(Elf32_Ehdr *kernel_header, Elf32_Phdr *kernel_phdr){
-   
-    return 0;
+  int sector_nb = kernel_phdr->p_filesz/512.0; 
+  return kernel_phdr->p_filesz%512 == 0?sector_nb:sector_nb+1;
 }
 
 /* Records the number of sectors in the kernel */
 void record_kernel_sectors(FILE **imagefile,Elf32_Ehdr *kernel_header, Elf32_Phdr *kernel_phdr, int num_sec){
-    
+  fseek(*imagefile,2,SEEK_SET);
+  fwrite(&num_sec, 1, sizeof(int), *imagefile);
 }
 
 
@@ -79,25 +102,46 @@ int main(int argc, char **argv){
 
   /* build image file */
   imagefile = fopen(IMAGE_FILE, "w");
+  
+  
   /* read executable bootblock file */  
-  // int hasExtended = !strncmp(argv[1],"--extended",11);
-  // char *bootfile_name = hasExtended?argv[2]:argv[1];
+  int hasExtended = !strncmp(argv[1],"--extended",11);
+  char *bootfile_name = hasExtended?argv[2]:argv[1];
+  bootfile = fopen(bootfile_name,"rb");
+  if(!bootfile)
+    return 1;
+  boot_program_header = read_exec_file(&bootfile,bootfile_name,&boot_header);
 
-  boot_program_header = read_exec_file(&bootfile,argv[1],&boot_header);
+
   /* write bootblock */
-  fwrite(boot_header, 1, sizeof(Elf32_Ehdr), imagefile);
-  fwrite(boot_program_header, 1, sizeof(Elf32_Phdr), imagefile);
+  write_bootblock(&imagefile, bootfile, boot_header, boot_program_header);
+  
+  
   /* read executable kernel file */
-
+  char *kernelfile_name = hasExtended?argv[3]:argv[2];
+  kernelfile = fopen(kernelfile_name,"rb");
+  if(!kernelfile)
+    return 1;
+  kernel_program_header = read_exec_file(&kernelfile,kernelfile_name,&kernel_header);
+  
+  
   /* write kernel segments to image */
+  write_kernel(&imagefile, kernelfile, kernel_header, kernel_program_header);
+
 
   /* tell the bootloader how many sectors to read to load the kernel */
-
+  int sector_nb = count_kernel_sectors(kernel_header,kernel_program_header);
+  record_kernel_sectors(&imagefile, kernel_header, kernel_program_header, sector_nb);
+  
+  
   /* check for  --extended option */
   if(!strncmp(argv[1],"--extended",11)){
 	/* print info */
   }
   fclose(imagefile);
+  fclose(kernelfile);
+  fclose(bootfile);
+
   return 0;
 } // ends main()
 
