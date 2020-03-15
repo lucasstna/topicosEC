@@ -19,7 +19,7 @@
 
 /* Reads in an executable file in ELF format*/
 Elf32_Phdr * read_exec_file(FILE **execfile, char *filename, Elf32_Ehdr **ehdr){
-  // *execfile = fopen(filename,"rb");
+  
   fread(*ehdr, 1, sizeof(Elf32_Ehdr), *execfile);
   if((*ehdr)->e_phoff != 0)
   {
